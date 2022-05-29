@@ -55,7 +55,6 @@ impl<T> ConstVec<T> {
         }
     }
 
-
     pub(crate) const fn push(&mut self, value: T) {
         unsafe {
             self.ensure_has_capacity();

@@ -1,7 +1,7 @@
 use crate::const_vec::ConstVec;
 
-#[derive(Debug)]
-enum Op {
+#[derive(Eq, PartialEq)]
+pub(crate) enum Op {
     DecPtr,
     IncPtr,
     Dec,
@@ -12,7 +12,7 @@ enum Op {
     LoopEnd(usize),
 }
 
-const fn parse(program: &str) -> &'static [Op] {
+pub(crate) const fn parse(program: &str) -> &'static [Op] {
     let mut idx = 0;
     let program = program.as_bytes();
     let mut ops = ConstVec::new();
@@ -49,9 +49,17 @@ const fn parse(program: &str) -> &'static [Op] {
     ops.as_slice()
 }
 
-const fn run(ops: &[Op], input: &str) -> &'static str {
+pub(crate) const fn run<const OPS: &'static [Op], const INPUT: &'static str>() -> &'static str {
+    fn rt() -> &'static str {
+        const { panic!("runtime execution not supported") }
+    }
+
+    unsafe { std::intrinsics::const_eval_select((), run_ct::<OPS, INPUT>, rt) }
+}
+
+const fn run_ct<const OPS: &'static [Op], const INPUT: &'static str>() -> &'static str {
     let mut output_buffer = ConstVec::<i8>::new();
-    let input = input.as_bytes();
+    let input = INPUT.as_bytes();
     let mut input_ptr = 0;
 
     let mut memory = ConstVec::<i8>::new();
@@ -59,8 +67,8 @@ const fn run(ops: &[Op], input: &str) -> &'static str {
     let mut ptr = 0;
     let mut ip = 0;
 
-    while ip < ops.len() {
-        let op = &ops[ip];
+    while ip < OPS.len() {
+        let op = &OPS[ip];
         ip += 1;
         match op {
             Op::IncPtr => {
@@ -72,10 +80,10 @@ const fn run(ops: &[Op], input: &str) -> &'static str {
             Op::DecPtr => ptr -= 1,
             Op::Inc => memory[ptr] = memory[ptr].wrapping_add(1),
             Op::Dec => memory[ptr] = memory[ptr].wrapping_sub(1),
-            Op::Print => output_buffer.push(unsafe { std::mem::transmute(memory[ptr]) }),
+            Op::Print => output_buffer.push(memory[ptr]),
             Op::Input => {
                 memory[ptr] = if input_ptr < input.len() {
-                    i8::from_ne_bytes([input[input_ptr]])
+                    input[input_ptr] as i8
                 } else {
                     -1
                 };
@@ -103,9 +111,4 @@ const fn run(ops: &[Op], input: &str) -> &'static str {
             )
         )
     }
-}
-
-
-pub(crate) const fn execute(program: &str, input: &str) -> &'static str {
-    run(parse(program), input)
 }
