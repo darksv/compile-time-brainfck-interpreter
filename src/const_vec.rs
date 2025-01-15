@@ -28,27 +28,33 @@ impl<T> ConstVec<T> {
         if self.len == self.capacity {
             if self.capacity == 0 {
                 self.capacity = 1;
-                self.data = const_allocate(
-                    self.capacity * std::mem::size_of::<T>(),
-                    std::mem::align_of::<T>(),
-                );
+                self.data = unsafe {
+                    const_allocate(
+                        self.capacity * std::mem::size_of::<T>(),
+                        std::mem::align_of::<T>(),
+                    )
+                };
             } else {
                 self.capacity *= 2;
-                let new_alloc = const_allocate(
-                    self.capacity * std::mem::size_of::<T>(),
-                    std::mem::align_of::<T>(),
-                );
+                let new_alloc = unsafe {
+                    const_allocate(
+                        self.capacity * std::mem::size_of::<T>(),
+                        std::mem::align_of::<T>(),
+                    )
+                };
 
                 // Copy items from the old location
                 let mut offset = 0;
                 while offset < self.len {
-                    new_alloc
-                        .cast::<T>()
-                        .offset(offset as isize)
-                        .write(self.data
+                    unsafe {
+                        new_alloc
                             .cast::<T>()
                             .offset(offset as isize)
-                            .read());
+                            .write(self.data
+                                .cast::<T>()
+                                .offset(offset as isize)
+                                .read());
+                    }
                     offset += 1;
                 }
                 self.data = new_alloc;
