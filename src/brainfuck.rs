@@ -39,7 +39,7 @@ pub(crate) const fn parse(program: &str) -> &'static [Op] {
                     None => panic!(),
                 };
                 let end = ops.len();
-                ops[start] = Op::LoopStart(end + 1);
+                *ops.get_mut(start) = Op::LoopStart(end + 1);
                 Op::LoopEnd(start)
             }
             _ => continue,
@@ -49,17 +49,9 @@ pub(crate) const fn parse(program: &str) -> &'static [Op] {
     ops.as_slice()
 }
 
-pub(crate) const fn run<const OPS: &'static [Op], const INPUT: &'static str>() -> &'static str {
-    fn rt() -> &'static str {
-        const { panic!("runtime execution not supported") }
-    }
-
-    unsafe { std::intrinsics::const_eval_select((), run_ct::<OPS, INPUT>, rt) }
-}
-
-const fn run_ct<const OPS: &'static [Op], const INPUT: &'static str>() -> &'static str {
+pub(crate) const fn run(ops: &'static [Op], input: &'static str) -> &'static str {
     let mut output_buffer = ConstVec::<i8>::new();
-    let input = INPUT.as_bytes();
+    let input = input.as_bytes();
     let mut input_ptr = 0;
 
     let mut memory = ConstVec::<i8>::new();
@@ -67,8 +59,8 @@ const fn run_ct<const OPS: &'static [Op], const INPUT: &'static str>() -> &'stat
     let mut ptr = 0;
     let mut ip = 0;
 
-    while ip < OPS.len() {
-        let op = &OPS[ip];
+    while ip < ops.len() {
+        let op = &ops[ip];
         ip += 1;
         match op {
             Op::IncPtr => {
@@ -78,11 +70,11 @@ const fn run_ct<const OPS: &'static [Op], const INPUT: &'static str>() -> &'stat
                 }
             }
             Op::DecPtr => ptr -= 1,
-            Op::Inc => memory[ptr] = memory[ptr].wrapping_add(1),
-            Op::Dec => memory[ptr] = memory[ptr].wrapping_sub(1),
-            Op::Print => output_buffer.push(memory[ptr]),
+            Op::Inc => *memory.get_mut(ptr) = memory.get_mut(ptr).wrapping_add(1),
+            Op::Dec => *memory.get_mut(ptr) = memory.get_mut(ptr).wrapping_sub(1),
+            Op::Print => output_buffer.push(*memory.get_mut(ptr)),
             Op::Input => {
-                memory[ptr] = if input_ptr < input.len() {
+                *memory.get_mut(ptr) = if input_ptr < input.len() {
                     input[input_ptr] as i8
                 } else {
                     -1
@@ -90,12 +82,12 @@ const fn run_ct<const OPS: &'static [Op], const INPUT: &'static str>() -> &'stat
                 input_ptr += 1;
             }
             Op::LoopStart(end) => {
-                if memory[ptr] == 0 {
+                if *memory.get_mut(ptr) == 0 {
                     ip = *end;
                 }
             }
             Op::LoopEnd(start) => {
-                if memory[ptr] != 0 {
+                if *memory.get_mut(ptr) != 0 {
                     ip = *start;
                 }
             }

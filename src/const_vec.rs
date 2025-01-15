@@ -1,5 +1,6 @@
 use std::intrinsics::const_allocate;
 use std::marker::PhantomData;
+#[cfg(any())]
 use std::ops;
 
 pub(crate) struct ConstVec<T> {
@@ -81,8 +82,14 @@ impl<T> ConstVec<T> {
             }
         }
     }
+
+    pub(crate) const fn get_mut(&mut self, index: usize) -> &mut T {
+        assert!(index < self.len);
+        unsafe { &mut *self.data.cast::<T>().offset(index as isize) }
+    }
 }
 
+#[cfg(any())]
 impl<T> const ops::Index<usize> for ConstVec<T> {
     type Output = T;
 
@@ -92,6 +99,7 @@ impl<T> const ops::Index<usize> for ConstVec<T> {
     }
 }
 
+#[cfg(any())]
 impl<T> const ops::IndexMut<usize> for ConstVec<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         assert!(index < self.len);
